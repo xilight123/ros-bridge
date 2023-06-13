@@ -22,6 +22,7 @@
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>python-transforms3d-pip</exec_depend>
   <exec_depend>ros_compatibility</exec_depend>
+  <exec_depend>rviz_carla_plugin</exec_depend>
 
   <!-- ROS 2 DEPENDENCIES-->
   <depend condition="$ROS_VERSION == 2">rclpy</depend>

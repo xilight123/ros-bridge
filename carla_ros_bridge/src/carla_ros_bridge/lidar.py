@@ -163,3 +163,101 @@ class SemanticLidar(Sensor):
         lidar_data['y'] *= -1
         point_cloud_msg = create_cloud(header, fields, lidar_data.tolist())
         self.semantic_lidar_publisher.publish(point_cloud_msg)
+
+
+class FMCWLidar(Sensor):
+
+    """
+    Actor implementation details for fmcw lidars
+    """
+
+    def __init__(self, uid, name, parent, relative_spawn_pose, node, carla_actor, synchronous_mode):
+        """
+        Constructor
+
+        :param uid: unique identifier for this object
+        :type uid: int
+        :param name: name identiying this object
+        :type name: string
+        :param parent: the parent of this
+        :type parent: carla_ros_bridge.Parent
+        :param relative_spawn_pose: the spawn pose of this
+        :type relative_spawn_pose: geometry_msgs.Pose
+        :param node: node-handle
+        :type node: CompatibleNode
+        :param carla_actor: carla actor object
+        :type carla_actor: carla.Actor
+        :param synchronous_mode: use in synchronous mode?
+        :type synchronous_mode: bool
+        """
+        super(FMCWLidar, self).__init__(uid=uid,
+                                            name=name,
+                                            parent=parent,
+                                            relative_spawn_pose=relative_spawn_pose,
+                                            node=node,
+                                            carla_actor=carla_actor,
+                                            synchronous_mode=synchronous_mode)
+
+        self.fmcw_lidar_publisher = node.new_publisher(
+            PointCloud2,
+            self.get_topic_prefix(),
+            qos_profile=10)
+        self.listen()
+
+    def destroy(self):
+        super(FMCWLidar, self).destroy()
+        self.node.destroy_publisher(self.fmcw_lidar_publisher)
+
+    # pylint: disable=arguments-differ
+    def sensor_data_updated(self, carla_lidar_measurement):
+        """
+        Function to transform a received fmcw lidar measurement into a ROS point cloud message
+
+        :param carla_lidar_measurement: carla fmcw lidar measurement object
+        :type carla_lidar_measurement: carla.FMCWLidarMeasurement
+        """
+        header = self.get_msg_header(timestamp=carla_lidar_measurement.timestamp)
+        fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(name='ring', offset=12, datatype=PointField.UINT32, count=1),
+            PointField(name='column', offset=16, datatype=PointField.UINT32, count=1),
+            PointField(name='time', offset=20, datatype=PointField.FLOAT32, count=1),
+            PointField(name='velocity', offset=24, datatype=PointField.FLOAT32, count=1),
+            PointField(name='ObjIdx', offset=28, datatype=PointField.UINT32, count=1),
+            PointField(name='ObjTag', offset=32, datatype=PointField.UINT32, count=1),
+            PointField(name='bbox_x', offset=36, datatype=PointField.FLOAT32, count=1),
+            PointField(name='bbox_y', offset=40, datatype=PointField.FLOAT32, count=1),
+            PointField(name='bbox_z', offset=44, datatype=PointField.FLOAT32, count=1),
+            PointField(name='bbox_w', offset=48, datatype=PointField.FLOAT32, count=1),
+            PointField(name='bbox_l', offset=52, datatype=PointField.FLOAT32, count=1),
+            PointField(name='bbox_h', offset=56, datatype=PointField.FLOAT32, count=1),
+            PointField(name='rotation_z', offset=60, datatype=PointField.FLOAT32, count=1)
+        ]
+
+        lidar_data = numpy.fromstring(bytes(carla_lidar_measurement.raw_data),
+                                      dtype=numpy.dtype([
+                                          ('x', numpy.float32),
+                                          ('y', numpy.float32),
+                                          ('z', numpy.float32),
+                                          ('ring', numpy.uint32),
+                                          ('column', numpy.uint32),
+                                          ('time', numpy.float32),
+                                          ('velocity', numpy.float32),
+                                          ('ObjIdx', numpy.uint32),
+                                          ('ObjTag', numpy.uint32),
+                                          ('bbox_x', numpy.float32),
+                                          ('bbox_y', numpy.float32),
+                                          ('bbox_z', numpy.float32),
+                                          ('bbox_w', numpy.float32),
+                                          ('bbox_l', numpy.float32),
+                                          ('bbox_h', numpy.float32),
+                                          ('rotation_z', numpy.float32)
+                                      ]))
+
+        # we take the oposite of y axis
+        # (as lidar point are express in left handed coordinate system, and ros need right handed)
+        lidar_data['y'] *= -1
+        point_cloud_msg = create_cloud(header, fields, lidar_data.tolist())
+        self.fmcw_lidar_publisher.publish(point_cloud_msg)
